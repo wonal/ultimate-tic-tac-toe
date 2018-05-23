@@ -12,12 +12,16 @@ data Player = O | X | E
 instance Show Player where 
     show O = "O"
     show X = "X"
-    show E = ""
+    show E = "E"
 
 type InnerGame = [[Player]]
 type OuterGame = [[(InnerGame, Player)]]
 
-data Status game = Error | Decided | InProgress game
+data ErrorStatus = None | BoundsError | OccupiedError | RuleError
+                   deriving (Show, Eq)
+
+data Status g e = Decided | InProgress g | Error e
+                  deriving (Show, Eq)
 
 type Position = Int
 
@@ -39,44 +43,38 @@ checkCatsGame = catsGame . map (map snd)
 catsGame :: InnerGame -> Bool
 catsGame ig = fullGame ig && (win ig == E) 
 
-{-}
-selectGame :: (OuterGame, Int) -> Int -> Position -> Player -> (Status OuterGame, Int)
-selectGame (g, mustPlay) cell pos p  | cell < 0 || cell >= size^2             = (Error, mustPlay)  --if invalid gamecell  incorporate with otherwise
-                                     | otherwise = case move inner pos p of 
-                                                        Error -> (Error, mustPlay)
-                                                        Decided -> (Decided, pos)
-                                                        InProgress moveResult -> (InProgress (chunksOf 3 ((take cell games) ++ [(moveResult, win moveResult)] ++ (drop (cell+1) games))), pos)
-                                     where games = concat g
-                                           inner = fst (games !! cell)
-                                           -}
-                                           
-selectGame :: (OuterGame, Int) -> Int -> Position -> Player -> (Status OuterGame, Int)
-selectGame (g, mustPlay) cell pos p  | cell < 0 || cell >= size^2             = (Error, mustPlay)  --if invalid gamecell  incorporate with otherwise
+selectGame :: (OuterGame, Int) -> Int -> Position -> Player -> Status OuterGame ErrorStatus
+selectGame (g, mustPlay) cell pos p  | cell < 0 || cell >= size^2             = Error BoundsError
                                      | otherwise = case mustPlay /= cell of 
-                                                        True -> case move inner mustPlay p of
+                                                        True -> case move (fst (games !! mustPlay)) pos p of
                                                                      Decided -> case move inner pos p of 
-                                                                                     InProgress moveResult -> (InProgress (updateBoard games moveResult cell), pos)
-                                                                                     _                     -> (Error, mustPlay)
-                                                                     _       -> (Error, mustPlay)
+                                                                                     InProgress moveResult -> InProgress (updateBoard games moveResult cell)
+                                                                                     Decided               -> Decided
+                                                                                     Error e               -> Error e
+                                                                     _       -> Error RuleError 
                                                         False -> case move inner pos p of
-                                                                      Error -> (Error, mustPlay)
-                                                                      Decided -> (Decided, pos)
-                                                                      InProgress normalMove -> (InProgress (updateBoard games normalMove cell), pos)
+                                                                      Error e -> Error e
+                                                                      Decided -> Decided
+                                                                      InProgress normalMove -> InProgress (updateBoard games normalMove cell)
                                      where games = concat g
                                            inner = fst (games !! cell)
                                            updateBoard grid value index = chunksOf 3 ((take index grid) ++ [(value, win value)] ++ (drop (index+1) grid))
 
-move :: InnerGame -> Position -> Player -> Status InnerGame 
-move ig pos p | valid && ((win ig /= E) || catsGame ig) = Decided  -- valid position but X or B won OR it's a draw --> not an error but shouldn't place on the board since it's already decided
-              | valid                                   = InProgress board
-              | otherwise                               = Error 
-              where valid = validPosition ig pos
+move :: InnerGame -> Position -> Player -> Status InnerGame ErrorStatus
+move ig pos p | ((win ig /= E) || catsGame ig)                            = Decided  
+              | (checkPosition == None)                                   = InProgress board
+              | otherwise                                                 = Error checkPosition
+              where checkPosition = validPosition ig pos
                     rs = concat ig
                     board = chunksOf 3 ((take pos rs) ++ [p] ++ (drop (pos+1) rs))
-
-validPosition :: InnerGame -> Position -> Bool
-validPosition ig pos = 0 <= pos && pos < (size^2) && (concat ig !! pos == E)
-
+                    
+validPosition :: InnerGame -> Position -> ErrorStatus
+validPosition ig pos | not inbounds = BoundsError
+                     | inbounds && (not free) = OccupiedError
+                     | otherwise = None
+                     where inbounds = 0 <= pos && pos < (size^2)
+                           free = (concat ig !! pos) == E
+                     
 updatedBoard :: [a] -> Int -> a -> [[a]]
 updatedBoard rs index update = chunksOf 3 ((take index rs) ++ [update] ++ (drop (index+1) rs))
 
@@ -109,18 +107,6 @@ diagonalWin g = if ((((g !! 0) !! 0) == middle) && (middle == ((g !! 2) !! 2))) 
 ultimatetictactoe :: IO ()
 ultimatetictactoe = takeTurn (emptyGame (emptyGame E, E)) O Nothing
 
-{-}
-start :: OuterGame -> Player -> IO ()
-start g p = do displayGame g
-               cell <- getNum (prompt p ", enter the game number you wish to play in: ")
-               pos <- getNum (prompt p ", enter the cell number you wish to play in: ")
-               case fst (selectGame (g, cell) cell pos p) of 
-                        Error                  -> do putStrLn "Error: invalid move"
-                                                     start g p
-                        Decided                -> do putStrLn "That game cell has already been decided!  You can play in any free game now."
-                                                     start g p
-                        InProgress updatedGame -> checkWin updatedGame p pos
-            -}
 
 checkWin :: OuterGame -> Player -> Int -> IO ()
 checkWin g p c  | turnResult == X = putStrLn "Player X wins!\n"
@@ -138,14 +124,17 @@ takeTurn g p c =  do displayGame g
                      let c' = case c of 
                                    Nothing -> cell
                                    Just a  -> a
-                     case fst (selectGame (g, c') cell pos p) of 
-                          Error                  -> do putStrLn "Error: invalid move"
+                     case selectGame (g, c') cell pos p of 
+                          Error BoundsError      -> do putStrLn ("Error: " ++ show pos ++ " is an invalid move as it must be within the board.")
                                                        takeTurn g p c
-                          Decided                -> do putStrLn "That game cell has already been decided!  You can play in any free game now."
+                          Error OccupiedError    -> do putStrLn ("Error: " ++ show pos ++ " is an invalid move.  That space is already occupied.")
                                                        takeTurn g p c
+                          Error RuleError        -> do putStrLn ("Error: per the rules, " ++ show cell ++ " is an invalid game cell choice.  You must pick game cell " ++ show (maybe 0 id c) ++ ".")
+                                                       takeTurn g p c 
+                          Decided                -> do putStrLn ("That game cell has already been decided!  You can play in any free game now.")
+                                                       takeTurn g p Nothing 
                           InProgress updatedGame -> checkWin updatedGame p pos
 
-                          
 
 prompt:: Player -> String -> String
 prompt p s = "Player " ++ show p ++ s
@@ -190,4 +179,5 @@ correctGrid = replicate 3 correctRow
 correctGrid1 = replicate 3 correctRow1
 simpleRow = [[[X,X,X],[X,X,X],[X,X,X]],[[O,O,O],[O,O,O],[O,O,O]],[[E,E,E],[E,E,E],[E,E,E]]]
 simpleGrid = replicate 3 simpleRow
+x = [[E,E,E],[X,X,X],[O,O,O]]
 
