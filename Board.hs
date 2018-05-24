@@ -1,3 +1,4 @@
+module Board where 
 import Data.List
 import Data.List.Split
 import Data.Char
@@ -75,9 +76,6 @@ validPosition ig pos | not inbounds = BoundsError
                      where inbounds = 0 <= pos && pos < (size^2)
                            free = (concat ig !! pos) == E
                      
-updatedBoard :: [a] -> Int -> a -> [[a]]
-updatedBoard rs index update = chunksOf 3 ((take index rs) ++ [update] ++ (drop (index+1) rs))
-
 winner :: OuterGame -> Player
 winner = win . map (map snd) 
 
@@ -167,17 +165,4 @@ getNum s = do putStrLn s
                                                 do putStrLn "Error: invalid number"
                                                    getNum s
 
-
---for testing
-correctRow = [ ([[X,X,X],[X,X,X],[X,X,X]], X),([[O,O,O],[O,O,O],[O,O,O]],O),([[X,X,X],[X,X,X],[X,X,X]],X) ]
-correctRow1 = [ ([[X,X,X],[X,X,X],[X,X,X]], X),([[E,E,E],[E,E,E],[E,E,E]],E),([[E,E,E],[E,E,E],[E,E,E]],E) ]
-emptyRow = [ ([[E,E,E],[E,E,E],[E,E,E]], E),([[E,E,E],[E,E,E],[E,E,E]],E),([[E,E,E],[E,E,E],[E,E,E]],E) ]
-emptyGrid = replicate 3 emptyRow
-drawGame = [ ([[E,E,E],[E,E,E],[E,E,E]], E),([[E,E,E],[E,E,E],[E,E,E]],E),([[E,E,E],[E,E,E],[E,E,E]],E) ]
-drawExample = replicate 3 drawGame
-correctGrid = replicate 3 correctRow
-correctGrid1 = replicate 3 correctRow1
-simpleRow = [[[X,X,X],[X,X,X],[X,X,X]],[[O,O,O],[O,O,O],[O,O,O]],[[E,E,E],[E,E,E],[E,E,E]]]
-simpleGrid = replicate 3 simpleRow
-x = [[E,E,E],[X,X,X],[O,O,O]]
 
