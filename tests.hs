@@ -225,8 +225,10 @@ updatedGameX = [updatedExampleX, example1, reverse example1]
 updatedExampleO = [ ([[E,E,E],[X,X,X],[E,E,E]], X),([[E,E,E],[E,E,E],[E,E,O]],E),([[E,E,E],[E,E,E],[E,E,E]],E) ]
 updatedGameO = [updatedExampleO, example1, reverse example1]
 testOccupyGame = [example1, updatedExampleX, reverse updatedExampleO]
+example2 = [ ([[X,O,E],[X,X,X],[E,O,O]], X),([[O,O,X],[O,X,X],[O,X,O]],E),([[O,O,O],[X,X,X],[O,O,O]],O) ]
+game2 = [example2, example2, reverse example2]
 
 
-updatedExampleO = [ ([[E,E,E],[X,X,X],[E,E,E]], X),([[E,E,E],[E,E,E],[E,E,O]],E),([[E,E,E],[E,E,E],[E,E,E]],E),
+blah = [ ([[E,E,E],[X,X,X],[E,E,E]], X),([[E,E,E],[E,E,E],[E,E,O]],E),([[E,E,E],[E,E,E],[E,E,E]],E),
                     ([[E,E,E],[X,X,X],[E,E,E]], X),([[E,E,E],[E,E,E],[E,E,O]],E),([[E,E,E],[E,E,E],[E,E,E]],E), 
                     ([[E,E,E],[X,X,X],[E,E,E]], X),([[E,E,E],[E,E,E],[E,E,O]],E),([[E,E,E],[E,E,E],[E,E,E]],E) ]

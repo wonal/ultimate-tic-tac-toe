@@ -29,43 +29,62 @@ h = 79
 unit :: Float
 unit = 160
 
+data Game = Game {
+    pieces :: OuterGame,
+    lastCell :: Maybe Int,
+    currentPlayer :: Player, 
+    message :: String
+} deriving (Show)
+
+gameInit :: Game
+gameInit = Game{
+    pieces = emptyGame (emptyGame E, E),
+    lastCell = Nothing,
+    currentPlayer = X,
+    message = ""
+}
+
 outerGrid :: Picture
 outerGrid = Pictures [Polygon [(-h,f),(-g,f),(-g,-f),(-h,-f)],
                        Polygon [(h,f),(g,f),(g,-f),(h,-f)],
                        Polygon [(f,h),(f,g),(-f,g),(-f,h)],
                        Polygon [(f,-h),(f,-g),(-f,-g),(-f,-h)]]
+
 innerGrid :: Picture
 innerGrid = Pictures [Line [(-a,b),(-a,-b)], Line [(a,b),(a,-b)], Line [(-b,a),(b,a)], Line [(-b,-a),(b,-a)]]
 
-board :: Picture
-board = Pictures [outerGrid, innerGrid, Translate (-unit) 0 innerGrid, Translate unit 0 innerGrid,
+grid :: Picture
+grid = Pictures [outerGrid, innerGrid, Translate (-unit) 0 innerGrid, Translate unit 0 innerGrid,
                   Translate (-unit) (-unit) innerGrid, Translate 0 (-unit) innerGrid, Translate unit (-unit) innerGrid,
                   Translate (-unit) unit innerGrid, Translate 0 (unit) innerGrid, Translate unit unit innerGrid]
 
-game :: OuterGame -> Picture
-game g = Pictures [board]
+markXO :: OuterGame -> Picture
+markXO g = Pictures [if (fst x == X) then drawX (snd x) else drawO (snd x) | x <- filter (\(a,b) -> a /= E) (zip (concat $ concat $ map fst (concat g)) (concat $ positions)) ]
 
+render :: Game -> Picture
+render g = Pictures [grid, markXO (pieces g), turnString g, displayMessage (message g) g]
 
-centerX :: Picture
-centerX = Pictures [Scale (0.25::Float) (0.25::Float) (Translate (-35::Float) (-50::Float) (Text "X"))]
+displayMessage :: String -> Game -> Picture
+displayMessage m g = Scale (0.14) (0.14) (Translate (-unit * 6) (-unit * 12.20) (Color red (Text m)))
+
+turnString :: Game -> Picture
+turnString g = Scale (0.18) (0.18) (Translate (-unit * 12.5) (-unit * 9.5) (Text ("Player's turn: " ++ show (currentPlayer g))))
 
 drawX :: Points -> Picture 
 drawX ps = Pictures [Translate (fst x) (snd x) centerX]
                     where x = midpoint ps
 
-drawO :: Points -> Picture
-drawO ps = Pictures [Translate (fst x) (snd x) (Circle (12::Float))]
-                    where x = midpoint ps
+centerX :: Picture
+centerX = Pictures [Scale (0.25) (0.25) (Translate (-35.0) (-50.0) (Text "X"))]
 
-test :: Picture
-test = Pictures [Circle (12::Float), innerGrid, Scale (0.25::Float) (0.25::Float) (Translate (-35::Float) (-50::Float) (Text "X")), drawX ((20::Float,20::Float),(60::Float,60::Float)),
-                 drawO ((-20::Float,-60::Float),(20::Float,-20::Float))]
+drawO :: Points -> Picture
+drawO ps = Pictures [Translate (fst x) (snd x) (Circle (12.0))]
+                    where x = midpoint ps
 
 drawpic p = display (InWindow "board" (768,620) (0,0)) white (p)
 
 --A pair of points to determine the bounds of a cell
 type Points = ((Float, Float),(Float,Float))
-
 
 cells :: [Points]
 cells = [((-f,e),(-e,f)), ((-e,e),(e,f)), ((e,e),(f,f)), 
@@ -79,10 +98,9 @@ centerGrid = [((-b,a),(-a,b)), ((-a,a),(a,b)), ((a,a),(b,b)),
               ((-b,-b),(-a,-a)), ((-a,-b),(a,-a)), ((a,-b),(b,-a))]
 
 positions :: [[Points]]
-positions = [trnslt unit (-unit) centerGrid, trnslt 0 unit centerGrid, trnslt unit unit centerGrid,
+positions = [trnslt (-unit) unit centerGrid, trnslt 0 unit centerGrid, trnslt unit unit centerGrid,
              trnslt (-unit) 0 centerGrid, centerGrid, trnslt unit 0 centerGrid,
              trnslt (-unit) (-unit) centerGrid, trnslt 0 (-unit) centerGrid, trnslt unit (-unit) centerGrid]
-
 
 trnslt :: Float -> Float -> [Points] -> [Points]
 trnslt x y ps = [(( (fst(fst pair))+x , (snd(fst pair))+y ), ((fst(snd pair))+x , (snd(snd pair))+y))| pair <- ps]
@@ -102,16 +120,40 @@ getCell p c ps = case [pair | pair <- c, pointInBox p (fst pair) (snd pair)] of
                                                                Nothing -> Nothing
                                                                Just j -> Just (i,j)
 
-{-}
+
+example1 = [ ([[E,E,E],[X,X,X],[E,E,E]], X),([[E,E,E],[E,E,E],[E,E,E]],E),([[E,E,E],[E,E,E],[E,E,E]],E) ]
+game1 = [example1, example1, reverse example1]
+example2 = [ [ ([[X,O,E],[O,E,X],[E,X,O]], X),([[O,O,O],[O,O,O],[O,O,O]],E),([[O,X,O],[O,X,O],[O,X,O]],O) ],
+             [ ([[X,O,O],[X,O,O],[X,O,O]], X),([[E,E,E],[E,O,E],[E,E,E]],E),([[E,X,E],[E,X,E],[E,X,E]],O) ],
+             [ ([[X,X,X],[X,X,X],[X,X,X]], X),([[O,O,O],[O,O,O],[O,O,O]],E),([[E,E,E],[E,E,E],[E,E,E]],O) ]]
+
 playGame :: IO ()
-playGame = do let window = InWindow "game window"  (768,512) (20,20)
-              let game = emptyGame (emptyGame E,E)
-              play window white 0 game render handleEvent (\_ y -> y)
-                  
-handleEvent :: Event -> OuterGame -> OuterGame
-handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) = "The x coordinate is: " ++ show x ++ " and the y coordinate is " ++ show y
--}
+playGame = do let window = InWindow "ultimate tic tac toe"  (768,620) (0,0)
+              play window white 0 gameInit render handleEvent (\_ x -> x)
+                 
+              
+              --TODO  can use winners in board tuple to update cells with cell wins
+handleEvent :: Event -> Game -> Game
+handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g = 
+            case getCell (x,y) cells positions of
+                 Nothing    -> g {message = "Error: Invalid position."} 
+                 Just (i,j) -> case selectGame ((pieces g), c) i j (currentPlayer g) of 
+                                    Error BoundsError      -> g {message = "Error: Invalid position.  Choose a valid position."}
+                                    Error OccupiedError    -> g {message = "Error: Position is occupied."}
+                                    Error RuleError        -> g {message = "Error: Per the rules, you must move in cell " ++ (show c)}
+                                    Decided                -> g {lastCell = Nothing, message = "Error: That game is already decided! Move again."}   -- REMOVE lastCELL
+                                    InProgress ip          -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = checkWin (pieces g)}  
+                                    where c = case lastCell g of
+                                                   Nothing -> i
+                                                   Just val -> val
+handleEvent _ g = g
              
+checkWin :: OuterGame -> String
+checkWin g    | turnResult == X = "Player X wins!\n"
+              | turnResult == O = "Player O wins!\n"
+              | checkCatsGame g = "It's a draw!\n"
+              | otherwise       = ""
+              where turnResult = winner g
 
 
 

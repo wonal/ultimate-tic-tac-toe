@@ -106,8 +106,8 @@ ultimatetictactoe :: IO ()
 ultimatetictactoe = takeTurn (emptyGame (emptyGame E, E)) O Nothing
 
 
-checkWin :: OuterGame -> Player -> Int -> IO ()
-checkWin g p c  | turnResult == X = putStrLn "Player X wins!\n"
+checkWinCondition :: OuterGame -> Player -> Int -> IO ()
+checkWinCondition g p c  | turnResult == X = putStrLn "Player X wins!\n"
                 | turnResult == O = putStrLn "Player O wins!\n"
                 | checkCatsGame g   = putStrLn "It's a draw!\n"
                 | otherwise       =
@@ -131,7 +131,7 @@ takeTurn g p c =  do displayGame g
                                                        takeTurn g p c 
                           Decided                -> do putStrLn ("That game cell has already been decided!  You can play in any free game now.")
                                                        takeTurn g p Nothing 
-                          InProgress updatedGame -> checkWin updatedGame p pos
+                          InProgress updatedGame -> checkWinCondition updatedGame p pos
 
 
 prompt:: Player -> String -> String
