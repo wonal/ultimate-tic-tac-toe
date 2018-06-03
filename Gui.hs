@@ -1,66 +1,106 @@
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
+import Graphics.Gloss.Data.Point
 import Graphics.Gloss.Data.Vector
 import qualified Graphics.Gloss.Data.Point.Arithmetic as P
 import Graphics.Gloss.Geometry.Angle
 import Graphics.Gloss.Data.Color
 import Board
+import Data.List(elemIndex)
 
-a :: Float
-a = 0
+a::Float
+a = 20
 
 b :: Float
-b = 250
+b = 60
 
-c :: Float
-c = 500
-
-d :: Float
-d = 750
-
-e::Float
-e = 20
+e:: Float
+e = 80
 
 f::Float
-f = 70
+f = 240
 
 g::Float
-g = 90
+g = 81
 
 h::Float
-h = 160
-
-i::Float
-i = 230
+h = 79
 
 unit :: Float
-unit = 125
+unit = 160
 
 outerGrid :: Picture
-outerGrid = Pictures [(Line [(a,c),(d,c)]), 
-                      (Line [(a,b),(d,b)]), 
-                      --(Line [(b,a),(b,d)]), 
-                      outerGrid1,
-                      (Line [(c,a),(c,d)])]
-
-
-outerGrid1 :: Picture
-outerGrid1 = Pictures [Polygon [(249.0,0.0),(249.0,750.0),(251.0, 750.0),(251.0,0.0)],
-                       Polygon [(499.0,0.0),(499.0,750.0),(501.0, 750.0),(501.0,0.0)],
-                       Polygon [(0.0,499.0),(0.0,501.0),(750.0, 501.0),(750.0,499.0)],
-                       Polygon [(0.0,249.0),(0.0,251.0),(750.0, 251.0),(750.0,249.0)]]
-
+outerGrid = Pictures [Polygon [(-h,f),(-g,f),(-g,-f),(-h,-f)],
+                       Polygon [(h,f),(g,f),(g,-f),(h,-f)],
+                       Polygon [(f,h),(f,g),(-f,g),(-f,h)],
+                       Polygon [(f,-h),(f,-g),(-f,-g),(-f,-h)]]
 innerGrid :: Picture
-innerGrid = Translate (-125::Float) (-125::Float) (Pictures [Line [(e,h),(i,h)], Line[(e,g),(i,g)], Line[(g,e),(g,i)], Line[(h,e),(h,i)]])
+innerGrid = Pictures [Line [(-a,b),(-a,-b)], Line [(a,b),(a,-b)], Line [(-b,a),(b,a)], Line [(-b,-a),(b,-a)]]
 
-render :: Picture
-render = Translate (-375::Float) (-375::Float) (Pictures [outerGrid1, Translate (unit) (unit) innerGrid, Translate (unit) (unit * 3) innerGrid,
-                                                          Translate (unit) (unit * 5) innerGrid, Translate (unit * 3) (unit * 3) innerGrid,
-                                                          Translate (unit * 3) (unit) innerGrid, Translate (unit * 3) (unit * 5) innerGrid,
-                                                          Translate (unit * 5) (unit) innerGrid, Translate (unit * 5) (unit * 3) innerGrid,
-                                                          Translate (unit * 5) (unit * 5) innerGrid])
+board :: Picture
+board = Pictures [outerGrid, innerGrid, Translate (-unit) 0 innerGrid, Translate unit 0 innerGrid,
+                  Translate (-unit) (-unit) innerGrid, Translate 0 (-unit) innerGrid, Translate unit (-unit) innerGrid,
+                  Translate (-unit) unit innerGrid, Translate 0 (unit) innerGrid, Translate unit unit innerGrid]
 
-drawpic p = display (InWindow "board" (1000,1000) (0,0)) white (p)
+game :: OuterGame -> Picture
+game g = Pictures [board]
+
+
+centerX :: Picture
+centerX = Pictures [Scale (0.25::Float) (0.25::Float) (Translate (-35::Float) (-50::Float) (Text "X"))]
+
+drawX :: Points -> Picture 
+drawX ps = Pictures [Translate (fst x) (snd x) centerX]
+                    where x = midpoint ps
+
+drawO :: Points -> Picture
+drawO ps = Pictures [Translate (fst x) (snd x) (Circle (12::Float))]
+                    where x = midpoint ps
+
+test :: Picture
+test = Pictures [Circle (12::Float), innerGrid, Scale (0.25::Float) (0.25::Float) (Translate (-35::Float) (-50::Float) (Text "X")), drawX ((20::Float,20::Float),(60::Float,60::Float)),
+                 drawO ((-20::Float,-60::Float),(20::Float,-20::Float))]
+
+drawpic p = display (InWindow "board" (768,620) (0,0)) white (p)
+
+--A pair of points to determine the bounds of a cell
+type Points = ((Float, Float),(Float,Float))
+
+
+cells :: [Points]
+cells = [((-f,e),(-e,f)), ((-e,e),(e,f)), ((e,e),(f,f)), 
+         ((-f,-e),(-e,e)), ((-e,-e),(e,e)), ((e,-e),(f,e)), 
+         ((-f,-f),(-e,-e)), ((-e,-f),(e,-e)), ((e,-f),(f,-e))]
+
+--Center inner game
+centerGrid :: [Points]
+centerGrid = [((-b,a),(-a,b)), ((-a,a),(a,b)), ((a,a),(b,b)), 
+              ((-b,-a),(-a,a)), ((-a,-a),(a,a)), ((a,-a),(b,a)), 
+              ((-b,-b),(-a,-a)), ((-a,-b),(a,-a)), ((a,-b),(b,-a))]
+
+positions :: [[Points]]
+positions = [trnslt unit (-unit) centerGrid, trnslt 0 unit centerGrid, trnslt unit unit centerGrid,
+             trnslt (-unit) 0 centerGrid, centerGrid, trnslt unit 0 centerGrid,
+             trnslt (-unit) (-unit) centerGrid, trnslt 0 (-unit) centerGrid, trnslt unit (-unit) centerGrid]
+
+
+trnslt :: Float -> Float -> [Points] -> [Points]
+trnslt x y ps = [(( (fst(fst pair))+x , (snd(fst pair))+y ), ((fst(snd pair))+x , (snd(snd pair))+y))| pair <- ps]
+
+midpoint :: Points -> (Float, Float)
+midpoint ps = (((fst(fst ps)) + (fst(snd ps)))/2 , (((snd(fst ps)) + (snd(snd ps)))/2))
+
+
+getCell :: (Float, Float) -> [Points] -> [[Points]] -> Maybe (Int,Int)
+getCell p c ps = case [pair | pair <- c, pointInBox p (fst pair) (snd pair)] of
+                      [] -> Nothing
+                      (x:xs) -> case elemIndex x c of
+                                     Nothing -> Nothing
+                                     Just i -> case [pos | pos <- (ps !! i), pointInBox p (fst pos) (snd pos) ] of
+                                                    [] -> Nothing
+                                                    (y:ys) -> case elemIndex y (ps !! i) of
+                                                               Nothing -> Nothing
+                                                               Just j -> Just (i,j)
 
 {-}
 playGame :: IO ()
