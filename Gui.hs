@@ -32,6 +32,7 @@ data Game = Game {
     lastCell :: Maybe Int,
     currentPlayer :: Player, 
     message :: String,
+    score :: [Player],
     finished :: Bool
 } deriving (Show)
 
@@ -41,6 +42,7 @@ gameInit = Game{
     lastCell = Nothing,
     currentPlayer = X,
     message = "",
+    score = concat $ map (map snd) (emptyGame (emptyGame E,E)),
     finished = False
 }
 
@@ -59,10 +61,19 @@ grid = Pictures [outerGrid, innerGrid, Translate (-unit) 0 innerGrid, Translate 
                   Translate (-unit) unit innerGrid, Translate 0 (unit) innerGrid, Translate unit unit innerGrid]
 
 markXO :: OuterGame -> Picture
-markXO g = Pictures [if (fst x == X) then drawX (snd x) else drawO (snd x) | x <- filter (\(a,b) -> a /= E) (zip (concat $ concat $ map fst (concat g)) (concat $ positions)) ]
+markXO g = Pictures [if (fst x == X) then drawX (snd x) (1.0) else drawO (snd x) (1.0) (0.0) black | x <- filter (\(a,b) -> a /= E) (zip (concat $ concat $ map fst (concat g)) (concat $ positions)) ]
 
 render :: Game -> Picture
-render g = Pictures [grid, markXO (pieces g), turnString g, displayMessage (message g) g, Scale (0.22) (0.22) (Translate (-unit * 4.5) (unit * 7.75) (Text "Ultimate Tic-Tac-Toe!"))]
+render g = Pictures [grid, markXO (pieces g), turnString g, displayMessage (message g) g, displayNext (lastCell g),
+                     displayWins (score g), Scale (0.22) (0.22) (Translate (-unit * 4.5) (unit * 7.75) (Text "Ultimate Tic-Tac-Toe!"))]
+
+displayNext :: Maybe Int -> Picture
+displayNext c = case c of
+                     Nothing -> Blank
+                     Just num -> drawO (cells !! (num)) (7.0) (2.0) blue
+
+displayWins :: [Player] -> Picture
+displayWins gs = Pictures [if (fst x == X) then drawX (snd x) (4.0) else drawO (snd x) (4.0) (0.0) black | x <- filter (\(a,b) -> a /= E) (zip gs cells)]
 
 displayMessage :: String -> Game -> Picture
 displayMessage m g = Scale (0.14) (0.14) (Translate (-unit * 6) (-unit * 12.20) (Color red (Text m)))
@@ -70,18 +81,16 @@ displayMessage m g = Scale (0.14) (0.14) (Translate (-unit * 6) (-unit * 12.20) 
 turnString :: Game -> Picture
 turnString g = Scale (0.18) (0.18) (Translate (-unit * 12.5) (-unit * 9.5) (Text ("Player's turn: " ++ show (currentPlayer g))))
 
-drawX :: Points -> Picture 
-drawX ps = Pictures [Translate (fst x) (snd x) centerX]
+drawX :: Points -> Float -> Picture 
+drawX ps scale = Pictures [Translate (fst x) (snd x) (centerX scale)]
                     where x = midpoint ps
 
-centerX :: Picture
-centerX = Pictures [Scale (0.25) (0.25) (Translate (-35.0) (-50.0) (Text "X"))]
+centerX :: Float -> Picture
+centerX s = Pictures [Scale (0.25 * s) (0.25 * s) (Translate (-35.0) (-50.0) (Text "X"))]
 
-drawO :: Points -> Picture
-drawO ps = Pictures [Translate (fst x) (snd x) (Circle (12.0))]
+drawO :: Points -> Float -> Float -> Color -> Picture
+drawO ps scale thick color = Pictures [Translate (fst x) (snd x) (Color color (ThickCircle (12.0 * scale) (thick)))] 
                     where x = midpoint ps
-
-drawpic p = display (InWindow "board" (768,620) (0,0)) white (p)
 
 --A pair of points to determine the bounds of a cell
 type Points = ((Float, Float),(Float,Float))
@@ -125,7 +134,6 @@ playGame = do let window = InWindow "ultimate tic tac toe"  (768,620) (0,0)
               play window white 0 gameInit render handleEvent (\_ x -> x)
                  
               
-              --TODO  can use winners in board tuple to update cells with cell wins
 handleEvent :: Event -> Game -> Game
 handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g = 
             case finished g of 
@@ -138,8 +146,8 @@ handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g =
                                                   Error RuleError        -> g {message = "Error: Per the rules, you must move in cell " ++ (show (c+1))}
                                                   Decided                -> g {message = "Error: That game is already decided! Move again."} 
                                                   InProgress ip          -> case checkWin ip of 
-                                                                                 "" -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = ""}  
-                                                                                 _  -> g {pieces = ip, currentPlayer = E, message = checkWin ip, finished = True}
+                                                                                 "" -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), score = concat $ map (map snd) ip, message = ""}  
+                                                                                 _  -> g {pieces = ip, currentPlayer = E, message = checkWin ip, score = concat $ map (map snd) ip, finished = True}
                                     where c = case lastCell g of
                                                    Nothing -> i
                                                    Just val -> val
