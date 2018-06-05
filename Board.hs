@@ -13,7 +13,7 @@ data Player = O | X | E
 instance Show Player where 
     show O = "O"
     show X = "X"
-    show E = "E"
+    show E = " "
 
 type InnerGame = [[Player]]
 type OuterGame = [[(InnerGame, Player)]]

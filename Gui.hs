@@ -1,9 +1,6 @@
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Data.Point
-import Graphics.Gloss.Data.Vector
-import qualified Graphics.Gloss.Data.Point.Arithmetic as P
-import Graphics.Gloss.Geometry.Angle
 import Graphics.Gloss.Data.Color
 import Board
 import Data.List(elemIndex)
@@ -21,10 +18,10 @@ f::Float
 f = 240
 
 g::Float
-g = 81
+g = e + 1
 
 h::Float
-h = 79
+h = e - 1
 
 unit :: Float
 unit = 160
@@ -33,7 +30,8 @@ data Game = Game {
     pieces :: OuterGame,
     lastCell :: Maybe Int,
     currentPlayer :: Player, 
-    message :: String
+    message :: String,
+    finished :: Bool
 } deriving (Show)
 
 gameInit :: Game
@@ -41,7 +39,8 @@ gameInit = Game{
     pieces = emptyGame (emptyGame E, E),
     lastCell = Nothing,
     currentPlayer = X,
-    message = ""
+    message = "",
+    finished = False
 }
 
 outerGrid :: Picture
@@ -62,7 +61,7 @@ markXO :: OuterGame -> Picture
 markXO g = Pictures [if (fst x == X) then drawX (snd x) else drawO (snd x) | x <- filter (\(a,b) -> a /= E) (zip (concat $ concat $ map fst (concat g)) (concat $ positions)) ]
 
 render :: Game -> Picture
-render g = Pictures [grid, markXO (pieces g), turnString g, displayMessage (message g) g]
+render g = Pictures [grid, markXO (pieces g), turnString g, displayMessage (message g) g, Scale (0.22) (0.22) (Translate (-unit * 4.5) (unit * 7.75) (Text "Ultimate Tic-Tac-Toe!"))]
 
 displayMessage :: String -> Game -> Picture
 displayMessage m g = Scale (0.14) (0.14) (Translate (-unit * 6) (-unit * 12.20) (Color red (Text m)))
@@ -133,6 +132,7 @@ playGame = do let window = InWindow "ultimate tic tac toe"  (768,620) (0,0)
                  
               
               --TODO  can use winners in board tuple to update cells with cell wins
+              {-}
 handleEvent :: Event -> Game -> Game
 handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g = 
             case getCell (x,y) cells positions of
@@ -140,9 +140,33 @@ handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g =
                  Just (i,j) -> case selectGame ((pieces g), c) i j (currentPlayer g) of 
                                     Error BoundsError      -> g {message = "Error: Invalid position.  Choose a valid position."}
                                     Error OccupiedError    -> g {message = "Error: Position is occupied."}
-                                    Error RuleError        -> g {message = "Error: Per the rules, you must move in cell " ++ (show c)}
-                                    Decided                -> g {lastCell = Nothing, message = "Error: That game is already decided! Move again."}   -- REMOVE lastCELL
-                                    InProgress ip          -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = checkWin (pieces g)}  
+                                    Error RuleError        -> g {message = "Error: Per the rules, you must move in cell " ++ (show (c+1))}
+                                    Decided                -> g {message = "Error: That game is already decided! Move again."} 
+                                    --InProgress ip          -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = checkWin ip}  
+                                    InProgress ip          -> case finished g of
+                                                                   True  -> g {message = checkWin ip}
+                                                                   False -> case checkWin ip of 
+                                                                                 "" -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = ""}  
+                                                                                 _  -> g {pieces = ip, currentPlayer = E, message = checkWin ip, finished = True}
+                                    where c = case lastCell g of
+                                                   Nothing -> i
+                                                   Just val -> val
+                                                   -}
+handleEvent :: Event -> Game -> Game
+handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g = 
+            case finished g of 
+                 True -> g {message = checkWin (pieces g)}
+                 False -> case getCell (x,y) cells positions of
+                               Nothing    -> g {message = "Error: Invalid position."} 
+                               Just (i,j) -> case selectGame ((pieces g), c) i j (currentPlayer g) of 
+                                                  Error BoundsError      -> g {message = "Error: Invalid position.  Choose a valid position."}
+                                                  Error OccupiedError    -> g {message = "Error: Position is occupied."}
+                                                  Error RuleError        -> g {message = "Error: Per the rules, you must move in cell " ++ (show (c+1))}
+                                                  Decided                -> g {message = "Error: That game is already decided! Move again."} 
+                                    --InProgress ip          -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = checkWin ip}  
+                                                  InProgress ip          -> case checkWin ip of 
+                                                                                 "" -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = ""}  
+                                                                                 _  -> g {pieces = ip, currentPlayer = E, message = checkWin ip, finished = True}
                                     where c = case lastCell g of
                                                    Nothing -> i
                                                    Just val -> val
