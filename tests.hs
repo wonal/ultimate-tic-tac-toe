@@ -1,3 +1,4 @@
+module Tests where
 import Test.HUnit
 import Board
 

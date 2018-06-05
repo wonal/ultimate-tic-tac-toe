@@ -1,3 +1,4 @@
+module Gui where
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 import Graphics.Gloss.Data.Point
@@ -119,39 +120,12 @@ getCell p c ps = case [pair | pair <- c, pointInBox p (fst pair) (snd pair)] of
                                                                Nothing -> Nothing
                                                                Just j -> Just (i,j)
 
-
-example1 = [ ([[E,E,E],[X,X,X],[E,E,E]], X),([[E,E,E],[E,E,E],[E,E,E]],E),([[E,E,E],[E,E,E],[E,E,E]],E) ]
-game1 = [example1, example1, reverse example1]
-example2 = [ [ ([[X,O,E],[O,E,X],[E,X,O]], X),([[O,O,O],[O,O,O],[O,O,O]],E),([[O,X,O],[O,X,O],[O,X,O]],O) ],
-             [ ([[X,O,O],[X,O,O],[X,O,O]], X),([[E,E,E],[E,O,E],[E,E,E]],E),([[E,X,E],[E,X,E],[E,X,E]],O) ],
-             [ ([[X,X,X],[X,X,X],[X,X,X]], X),([[O,O,O],[O,O,O],[O,O,O]],E),([[E,E,E],[E,E,E],[E,E,E]],O) ]]
-
 playGame :: IO ()
 playGame = do let window = InWindow "ultimate tic tac toe"  (768,620) (0,0)
               play window white 0 gameInit render handleEvent (\_ x -> x)
                  
               
               --TODO  can use winners in board tuple to update cells with cell wins
-              {-}
-handleEvent :: Event -> Game -> Game
-handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g = 
-            case getCell (x,y) cells positions of
-                 Nothing    -> g {message = "Error: Invalid position."} 
-                 Just (i,j) -> case selectGame ((pieces g), c) i j (currentPlayer g) of 
-                                    Error BoundsError      -> g {message = "Error: Invalid position.  Choose a valid position."}
-                                    Error OccupiedError    -> g {message = "Error: Position is occupied."}
-                                    Error RuleError        -> g {message = "Error: Per the rules, you must move in cell " ++ (show (c+1))}
-                                    Decided                -> g {message = "Error: That game is already decided! Move again."} 
-                                    --InProgress ip          -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = checkWin ip}  
-                                    InProgress ip          -> case finished g of
-                                                                   True  -> g {message = checkWin ip}
-                                                                   False -> case checkWin ip of 
-                                                                                 "" -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = ""}  
-                                                                                 _  -> g {pieces = ip, currentPlayer = E, message = checkWin ip, finished = True}
-                                    where c = case lastCell g of
-                                                   Nothing -> i
-                                                   Just val -> val
-                                                   -}
 handleEvent :: Event -> Game -> Game
 handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g = 
             case finished g of 
@@ -163,7 +137,6 @@ handleEvent (EventKey (MouseButton LeftButton) Down _ (x,y)) g =
                                                   Error OccupiedError    -> g {message = "Error: Position is occupied."}
                                                   Error RuleError        -> g {message = "Error: Per the rules, you must move in cell " ++ (show (c+1))}
                                                   Decided                -> g {message = "Error: That game is already decided! Move again."} 
-                                    --InProgress ip          -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = checkWin ip}  
                                                   InProgress ip          -> case checkWin ip of 
                                                                                  "" -> g {pieces = ip, lastCell = Just j, currentPlayer = nextPlayer (currentPlayer g), message = ""}  
                                                                                  _  -> g {pieces = ip, currentPlayer = E, message = checkWin ip, finished = True}
