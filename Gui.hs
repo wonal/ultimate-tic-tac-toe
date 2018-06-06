@@ -64,13 +64,15 @@ markXO :: OuterGame -> Picture
 markXO g = Pictures [if (fst x == X) then drawX (snd x) (1.0) else drawO (snd x) (1.0) (0.0) black | x <- filter (\(a,b) -> a /= E) (zip (concat $ concat $ map fst (concat g)) (concat $ positions)) ]
 
 render :: Game -> Picture
-render g = Pictures [grid, markXO (pieces g), turnString g, displayMessage (message g) g, displayNext (lastCell g),
+render g = Pictures [grid, markXO (pieces g), turnString g, displayMessage (message g) g, displayNext (lastCell g) g,
                      displayWins (score g), Scale (0.22) (0.22) (Translate (-unit * 4.5) (unit * 7.75) (Text "Ultimate Tic-Tac-Toe!"))]
 
-displayNext :: Maybe Int -> Picture
-displayNext c = case c of
+displayNext :: Maybe Int -> Game -> Picture
+displayNext c gs = case c of
                      Nothing -> Blank
-                     Just num -> drawO (cells !! (num)) (7.0) (2.0) blue
+                     Just num -> if (win games /= E || catsGame games) then Blank
+                                                                       else drawO (cells !! (num)) (7.0) (2.0) blue
+                                    where games = (concat $ map (map fst) (pieces gs)) !! num
 
 displayWins :: [Player] -> Picture
 displayWins gs = Pictures [if (fst x == X) then drawX (snd x) (4.0) else drawO (snd x) (4.0) (0.0) black | x <- filter (\(a,b) -> a /= E) (zip gs cells)]
