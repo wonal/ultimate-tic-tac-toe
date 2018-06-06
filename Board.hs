@@ -1,6 +1,6 @@
 module Board where 
 import Data.List
-import Data.List.Split
+--import Data.List.Split
 import Data.Char
 import System.IO
 
@@ -59,7 +59,12 @@ selectGame (g, mustPlay) cell pos p  | cell < 0 || cell >= size^2             = 
                                                                       InProgress normalMove -> InProgress (updateBoard games normalMove cell)
                                      where games = concat g
                                            inner = fst (games !! cell)
-                                           updateBoard grid value index = chunksOf 3 ((take index grid) ++ [(value, win value)] ++ (drop (index+1) grid))
+                                           updateBoard grid value index = chop3 ((take index grid) ++ [(value, win value)] ++ (drop (index+1) grid))
+                                           --updateBoard grid value index = chunksOf 3 ((take index grid) ++ [(value, win value)] ++ (drop (index+1) grid))
+
+chop3 :: [a] -> [[a]]
+chop3 xs = takeWhile (not.null) [(take 3) (drop (3 * n) xs) | n <- [0..len]]
+                                where len = (length xs) `div` 3
 
 move :: InnerGame -> Position -> Player -> Status InnerGame ErrorStatus
 move ig pos p | ((win ig /= E) || catsGame ig)                            = Decided  
@@ -67,7 +72,8 @@ move ig pos p | ((win ig /= E) || catsGame ig)                            = Deci
               | otherwise                                                 = Error checkPosition
               where checkPosition = validPosition ig pos
                     rs = concat ig
-                    board = chunksOf 3 ((take pos rs) ++ [p] ++ (drop (pos+1) rs))
+                    board = chop3 ((take pos rs) ++ [p] ++ (drop (pos+1) rs))
+                    --board = chunksOf 3 ((take pos rs) ++ [p] ++ (drop (pos+1) rs))
                     
 validPosition :: InnerGame -> Position -> ErrorStatus
 validPosition ig pos | not inbounds = BoundsError

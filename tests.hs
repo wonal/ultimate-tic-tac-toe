@@ -2,6 +2,7 @@ module Tests where
 import Test.HUnit
 import Board
 
+--runTestTT allTests
 allTests = TestList[innerPositionValidationTests, innerWinTests, innerGameMoveTest, outerGameMoveTest]
 
 rowTestX :: Test
